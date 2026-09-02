@@ -1,0 +1,6 @@
+google-api-python-client
+python-dotenv
+sentence-transformers
+numpy
+scikit-learn
+vaderSentiment
