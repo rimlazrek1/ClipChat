@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search — Comment Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <link rel="stylesheet" href="/static/css/search.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" aria-label="Main navigation">
+    <a href="/" class="navbar__logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              stroke="#c0392b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Comment<span>Intel</span>
+    </a>
+    <ul class="navbar__links">
+      <li><a href="/">Home</a></li>
+      <li><a href="/search" class="active">Search</a></li>
+      <li><a href="/topics">Topics</a></li>
+      <li><a href="/analytics">Analytics</a></li>
+    </ul>
+  </nav>
+
+  <main class="search-page">
+
+    <!-- Search bar -->
+    <section class="search-header card">
+      <div class="search-bar-row">
+        <input id="searchInput" class="input" type="search"
+               placeholder="Search comments by meaning… e.g. audio problems"
+               autocomplete="off" />
+        <button class="btn btn--primary" id="searchBtn" type="button">Search</button>
+      </div>
+
+      <!-- Smart filter tabs -->
+      <div class="filter-tabs" role="tablist" aria-label="Filter tabs">
+        <button class="filter-tab active" data-filter="all"        role="tab" aria-selected="true">All</button>
+        <button class="filter-tab"        data-filter="positive"   role="tab">Positive</button>
+        <button class="filter-tab"        data-filter="neutral"    role="tab">Neutral</button>
+        <button class="filter-tab"        data-filter="negative"   role="tab">Negative</button>
+        <button class="filter-tab"        data-filter="questions"  role="tab">Viewer Questions</button>
+        <button class="filter-tab"        data-filter="technical"  role="tab">Technical Issues</button>
+      </div>
+
+      <!-- Extra filters -->
+      <details class="extra-filters">
+        <summary class="extra-filters__toggle">More filters</summary>
+        <div class="extra-filters__body">
+          <label class="filter-label">
+            Min likes
+            <input id="minLikes" class="input input--sm" type="number" min="0" placeholder="0" />
+          </label>
+          <label class="filter-label">
+            From
+            <input id="dateFrom" class="input input--sm" type="date" />
+          </label>
+          <label class="filter-label">
+            To
+            <input id="dateTo" class="input input--sm" type="date" />
+          </label>
+          <button class="btn btn--ghost btn--sm" id="applyFilters" type="button">Apply</button>
+          <button class="btn btn--ghost btn--sm" id="resetFilters" type="button">Reset</button>
+        </div>
+      </details>
+    </section>
+
+    <div class="search-body">
+
+      <!-- Search history sidebar -->
+      <aside class="history-panel card" id="historyPanel">
+        <div class="history-panel__header">
+          <h3>Recent searches</h3>
+          <button class="btn btn--ghost btn--sm" id="clearHistory">Clear</button>
+        </div>
+        <ul class="history-list" id="historyList"></ul>
+        <p class="text-muted history-empty hidden" id="historyEmpty">No history yet.</p>
+      </aside>
+
+      <!-- Results -->
+      <section class="results-area" aria-live="polite" aria-label="Search results">
+
+        <!-- No video state -->
+        <div class="state-msg card" id="noVideoMsg">
+          <p>No video loaded. <a href="/" class="link-red">Go back and paste a link.</a></p>
+        </div>
+
+        <!-- Idle state -->
+        <div class="state-msg card hidden" id="idleMsg">
+          <p class="text-muted">Type a query above and hit Search, or pick a filter tab to browse all comments.</p>
+        </div>
+
+        <!-- Loading -->
+        <div class="state-msg hidden" id="loadingMsg">
+          <div class="spinner"></div>
+          <p class="text-muted mt-1">Searching…</p>
+        </div>
+
+        <!-- Empty results -->
+        <div class="state-msg card hidden" id="emptyMsg">
+          <p class="text-muted">No comments matched. Try a different query or filter.</p>
+        </div>
+
+        <!-- Results header -->
+        <div class="results-meta hidden" id="resultsMeta">
+          <div class="results-meta__text">
+            <span id="resultsCount"></span>
+            <span class="results-meta__hint text-muted" id="resultsHint"></span>
+          </div>
+          <button class="btn btn--ghost btn--sm" id="downloadPdf">Download PDF</button>
+        </div>
+
+        <!-- Comment cards -->
+        <div class="comment-list" id="commentList"></div>
+
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+  <script src="/static/js/search.js"></script>
+</body>
+</html>

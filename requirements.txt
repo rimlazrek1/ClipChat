@@ -4,3 +4,5 @@ sentence-transformers
 numpy
 scikit-learn
 vaderSentiment
+flask
+fpdf2

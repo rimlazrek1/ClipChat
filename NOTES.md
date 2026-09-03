@@ -4,6 +4,8 @@ We added a cache (`comments.pkl` + `get_comments`) so we can clean/embed without
 
 Embeddings use `all-MiniLM-L6-v2` locally (free). Keep the model, VADER, `pipeline.py`, and `embed_query()` for the demo. Do not delete those. First run downloads the model once; that is not YouTube quota. On the demo machine, run the model once beforehand so the download is already done. First load is slow.
 
+WARNING (demo): The first search in a session is slow because `embed_query()` loads the embedding model into memory the first time it is called. Later searches are fast. Before the demo, warm it up: start the app, paste a link, run one search, then use a second search for the live demo. Restarting the server clears the model from memory, so the next search will be slow again.
+
 Sentiment uses VADER locally (free). Each comment gets `sentiment` (score) and `sentiment_label` (positive / neutral / negative).
 
 For the demo, use a public YouTube video with comments turned on, and have a backup link. Confirm `.env` has the key on the demo machine. Never show `.env` or the key on screen or in git. Confirm the UI shows the friendly error messages from `pipeline.py` (bad link, comments off, video not public). Help with UI polish if needed. `url.txt` is only for local tests, not the product.
