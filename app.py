@@ -22,22 +22,32 @@ _store: dict[str, list[dict]] = {}
 
 @app.route("/")
 def index():
+    """Render the home page where the user pastes a YouTube link."""
     return render_template("index.html")
 
 
 @app.route("/search")
 def search():
+    """Render the search / browse comments page."""
     return render_template("search.html")
 
 
 @app.route("/topics")
 def topics():
+    """Render the topic clustering page."""
     return render_template("topics.html")
 
 
 @app.route("/analytics")
 def analytics():
+    """Render the comment analytics dashboard."""
     return render_template("analytics.html")
+
+
+@app.route("/topic-analytics")
+def topic_analytics():
+    """Render the topic-comparison analytics dashboard."""
+    return render_template("topic_analytics.html")
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +60,12 @@ _TIMESTAMP_RE   = re.compile(r"\b(\d{1,2}):(\d{2})\b")
 
 
 def _apply_filters(comments: list[dict], filters: dict) -> list[dict]:
+    """
+    Filter comments by sentiment tabs, likes, date range, minute mark, and author.
+
+    ``filters`` may include ``sentiment``, ``min_likes``, ``date_from``, ``date_to``,
+    ``minute``, and ``author``.
+    """
     out = comments
 
     sentiment = filters.get("sentiment")
@@ -83,9 +99,13 @@ def _apply_filters(comments: list[dict], filters: dict) -> list[dict]:
         out = [c for c in out if c["published_at"] <= end]
 
     minute = filters.get("minute")  # e.g. "3" → filter comments mentioning 3:xx
-    if minute is not None:
+    if minute is not None and minute != "":
         target = int(minute)
         out = [c for c in out if any(int(m.group(1)) == target for m in _TIMESTAMP_RE.finditer(c["text"]))]
+
+    author = (filters.get("author") or "").strip()
+    if author:
+        out = [c for c in out if (c.get("author") or "") == author]
 
     return out
 
@@ -96,6 +116,7 @@ def _apply_filters(comments: list[dict], filters: dict) -> list[dict]:
 
 @app.route("/api/comments", methods=["POST"])
 def api_comments():
+    """Fetch comments for a YouTube URL, store them in memory, and return the video id."""
     data = request.get_json(force=True)
     url = (data or {}).get("url", "").strip()
     if not url:
@@ -120,14 +141,16 @@ def api_comments():
 
 @app.route("/api/browse", methods=["POST"])
 def api_browse():
+    """Return filtered comments for a video, sorted by likes (embeddings stripped)."""
     data     = request.get_json(force=True) or {}
     video_id = data.get("video_id", "")
     filters  = data.get("filters", {})
+    query    = (data.get("query") or "").strip()
 
     if video_id not in _store:
         return jsonify({"error": "No comments loaded. Please go back and paste a YouTube link first."}), 400
 
-    comments = _apply_filters(_store[video_id], filters)
+    comments = _filter_by_query(_apply_filters(_store[video_id], filters), query)
     stripped = [{k: v for k, v in c.items() if k != "embedding"} for c in comments]
     stripped.sort(key=lambda x: x["likes"], reverse=True)
     total_loaded = len(_store[video_id])
@@ -147,8 +170,27 @@ _MIN_WORD_LEN = 3
 _HIGH_SIM = 0.48
 
 
+def _filter_by_query(comments: list[dict], query: str) -> list[dict]:
+    """Keep comments that contain a query word or score high on meaning."""
+    query = (query or "").strip()
+    if not query:
+        return comments
+
+    words = [w for w in re.findall(r"[a-z0-9']+", query.lower()) if len(w) >= _MIN_WORD_LEN]
+    q_vec = embed_query(query)
+    matched = []
+    for c in comments:
+        sim = float(np.dot(q_vec, np.array(c["embedding"])))
+        hay = c["text"].lower()
+        has_word = any(w in hay for w in words) if words else query.lower() in hay
+        if has_word or sim >= _HIGH_SIM:
+            matched.append(c)
+    return matched
+
+
 @app.route("/api/search", methods=["POST"])
 def api_search():
+    """Semantic + keyword search over loaded comments; results ranked by similarity."""
     data = request.get_json(force=True) or {}
     video_id = data.get("video_id", "")
     query    = data.get("query", "").strip()
@@ -159,17 +201,12 @@ def api_search():
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
-    comments = _apply_filters(_store[video_id], filters)
-    words = [w for w in re.findall(r"[a-z0-9']+", query.lower()) if len(w) >= _MIN_WORD_LEN]
+    comments = _filter_by_query(_apply_filters(_store[video_id], filters), query)
     q_vec = embed_query(query)
 
     scored = []
     for c in comments:
         sim = float(np.dot(q_vec, np.array(c["embedding"])))
-        hay = c["text"].lower()
-        has_word = any(w in hay for w in words) if words else query.lower() in hay
-        if not has_word and sim < _HIGH_SIM:
-            continue
         scored.append({**c, "similarity": round(sim, 4), "embedding": None})
 
     scored.sort(key=lambda x: x["similarity"], reverse=True)
@@ -183,38 +220,35 @@ def api_search():
 
 
 # ---------------------------------------------------------------------------
-# API: topics (KMeans + TF-IDF titles + Core Message)
+# Helper: build topic clusters (shared by topics + topic-analytics)
 # ---------------------------------------------------------------------------
 
-@app.route("/api/topics", methods=["POST"])
-def api_topics():
-    data = request.get_json(force=True) or {}
-    video_id   = data.get("video_id", "")
-    n_clusters = int(data.get("n_clusters", 5))
-    filters    = data.get("filters", {})
+def _strip_comment(c: dict) -> dict:
+    """Return a comment dict without the large embedding vector."""
+    return {k: v for k, v in c.items() if k != "embedding"}
 
-    if video_id not in _store:
-        return jsonify({"error": "No comments loaded for this video"}), 400
 
-    comments = _apply_filters(_store[video_id], filters)
+def _build_topics(comments: list[dict], n_clusters: int) -> tuple[list[dict], int]:
+    """
+    Cluster comments with KMeans, name each group with TF-IDF, and pick a core message.
+
+    Returns ``(topic_list, n_clusters_used)``. Topics are sorted by size descending.
+    """
     if len(comments) < 2:
-        return jsonify({"error": "Not enough comments to cluster"}), 400
+        return [], 0
 
-    n_clusters = min(n_clusters, len(comments))
+    n_clusters = min(max(2, n_clusters), len(comments))
     embeddings = np.array([c["embedding"] for c in comments])
 
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     labels = kmeans.fit_predict(embeddings)
 
-    # Group comments by cluster
     groups: dict[int, list] = defaultdict(list)
     for i, c in enumerate(comments):
         groups[int(labels[i])].append(c)
 
-    # TF-IDF title + Core Message per cluster
     results = []
     for label, cluster_comments in groups.items():
-        # TF-IDF top-3 terms
         texts = [c["text"] for c in cluster_comments]
         try:
             tfidf = TfidfVectorizer(stop_words="english", max_features=500)
@@ -226,27 +260,104 @@ def api_topics():
         except Exception:
             title = "general discussion"
 
-        # Core Message: comment closest to centroid
         centroid = kmeans.cluster_centers_[label]
         vecs = np.array([c["embedding"] for c in cluster_comments])
         norms = np.linalg.norm(vecs - centroid, axis=1)
-        core_idx = int(np.argmin(norms))
-        core = cluster_comments[core_idx]
-
-        # Strip embeddings from output (large + not needed by frontend)
-        def _strip(c):
-            return {k: v for k, v in c.items() if k != "embedding"}
+        core = cluster_comments[int(np.argmin(norms))]
 
         results.append({
             "cluster_id": label,
             "title": title,
-            "core_message": _strip(core),
+            "core_message": _strip_comment(core),
             "count": len(cluster_comments),
-            "comments": [_strip(c) for c in cluster_comments],
+            "comments": [_strip_comment(c) for c in cluster_comments],
         })
 
     results.sort(key=lambda x: x["count"], reverse=True)
+    return results, n_clusters
+
+
+# ---------------------------------------------------------------------------
+# API: topics (KMeans + TF-IDF titles + Core Message)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/topics", methods=["POST"])
+def api_topics():
+    """Cluster filtered comments into topics with titles and core messages."""
+    data = request.get_json(force=True) or {}
+    video_id   = data.get("video_id", "")
+    n_clusters = int(data.get("n_clusters", 5))
+    filters    = data.get("filters", {})
+    query      = (data.get("query") or "").strip()
+
+    if video_id not in _store:
+        return jsonify({"error": "No comments loaded for this video"}), 400
+
+    comments = _filter_by_query(_apply_filters(_store[video_id], filters), query)
+    if len(comments) < 2:
+        return jsonify({"error": "Not enough comments to cluster"}), 400
+
+    results, n_clusters = _build_topics(comments, n_clusters)
     return jsonify({"success": True, "n_clusters": n_clusters, "topics": results})
+
+
+# ---------------------------------------------------------------------------
+# API: topic analytics (per-cluster comparison stats)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/topic-analytics", methods=["POST"])
+def api_topic_analytics():
+    """Return per-topic size, likes, and sentiment stats for comparison charts."""
+    data = request.get_json(force=True) or {}
+    video_id   = data.get("video_id", "")
+    n_clusters = int(data.get("n_clusters", 5))
+    filters    = data.get("filters", {})
+    query      = (data.get("query") or "").strip()
+
+    if video_id not in _store:
+        return jsonify({"error": "No comments loaded for this video"}), 400
+
+    comments = _filter_by_query(_apply_filters(_store[video_id], filters), query)
+    if len(comments) < 2:
+        return jsonify({"error": "Not enough comments to cluster"}), 400
+
+    topics, n_clusters = _build_topics(comments, n_clusters)
+
+    topic_stats = []
+    total_likes = 0
+    authors = set()
+    for t in topics:
+        sentiment = defaultdict(int)
+        likes = 0
+        for c in t["comments"]:
+            sentiment[c["sentiment_label"]] += 1
+            likes += int(c.get("likes") or 0)
+            authors.add(c.get("author"))
+        total_likes += likes
+        count = t["count"] or 1
+        topic_stats.append({
+            "cluster_id": t["cluster_id"],
+            "title": t["title"],
+            "count": t["count"],
+            "total_likes": likes,
+            "avg_likes": round(likes / count, 1),
+            "sentiment": {
+                "positive": sentiment.get("positive", 0),
+                "neutral": sentiment.get("neutral", 0),
+                "negative": sentiment.get("negative", 0),
+            },
+            "positive_rate": round(100 * sentiment.get("positive", 0) / count),
+            "core_message": t["core_message"],
+        })
+
+    return jsonify({
+        "success": True,
+        "n_clusters": n_clusters,
+        "total_comments": len(comments),
+        "total_likes": total_likes,
+        "unique_authors": len(authors),
+        "topics": topic_stats,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -255,14 +366,18 @@ def api_topics():
 
 @app.route("/api/timestamps", methods=["POST"])
 def api_timestamps():
+    """Count timestamp mentions in comments, grouped by minute (e.g. 3:xx)."""
     data     = request.get_json(force=True) or {}
     video_id = data.get("video_id", "")
+    filters  = data.get("filters", {})
+    query    = (data.get("query") or "").strip()
 
     if video_id not in _store:
         return jsonify({"error": "No comments loaded for this video"}), 400
 
+    comments = _filter_by_query(_apply_filters(_store[video_id], filters), query)
     counts: dict[int, int] = defaultdict(int)
-    for c in _store[video_id]:
+    for c in comments:
         for m in _TIMESTAMP_RE.finditer(c["text"]):
             minute = int(m.group(1))
             counts[minute] += 1
@@ -271,7 +386,7 @@ def api_timestamps():
         [{"minute": k, "count": v} for k, v in counts.items()],
         key=lambda x: x["minute"],
     )
-    return jsonify({"success": True, "heatmap": heatmap})
+    return jsonify({"success": True, "heatmap": heatmap, "count": len(comments)})
 
 
 # ---------------------------------------------------------------------------
@@ -280,16 +395,19 @@ def api_timestamps():
 
 @app.route("/api/analytics", methods=["POST"])
 def api_analytics():
+    """Return summary stats, sentiment mix, daily activity, and top authors."""
     data     = request.get_json(force=True) or {}
     video_id = data.get("video_id", "")
+    filters  = data.get("filters", {})
+    query    = (data.get("query") or "").strip()
 
     if video_id not in _store:
         return jsonify({"error": "No comments loaded for this video"}), 400
 
-    comments = _store[video_id]
+    comments = _filter_by_query(_apply_filters(_store[video_id], filters), query)
     total    = len(comments)
     if total == 0:
-        return jsonify({"error": "No comments available"}), 400
+        return jsonify({"error": "No comments available for these filters"}), 400
 
     sentiment_counts = defaultdict(int)
     date_counts      = defaultdict(int)
@@ -322,6 +440,8 @@ def api_analytics():
         "sentiment": dict(sentiment_counts),
         "dates": dates,
         "top_authors": top_authors,
+        "filtered": bool(query or (filters and any(filters.values()))),
+        "query": query,
     })
 
 
@@ -331,6 +451,7 @@ def api_analytics():
 
 @app.route("/api/check-video")
 def api_check_video():
+    """Return the most recently loaded video id and comment count, if any."""
     video_ids = list(_store.keys())
     if not video_ids:
         return jsonify({"video_id": None, "count": 0})
@@ -343,6 +464,7 @@ def api_check_video():
 # ---------------------------------------------------------------------------
 
 def _pdf_text(value, limit=None) -> str:
+    """Sanitize text for FPDF (ASCII-safe, wrapped long words, optional length cap)."""
     text = str(value or "").replace("\r", " ").replace("\n", " ").replace("\t", " ")
     text = "".join(ch if 32 <= ord(ch) <= 126 else "?" for ch in text)
     text = " ".join(text.split())
@@ -360,6 +482,7 @@ def _pdf_text(value, limit=None) -> str:
 
 
 def _pdf_line(pdf, text, height=5):
+    """Write one wrapped line to the PDF and reset the cursor to the left margin."""
     line = _pdf_text(text) or "-"
     pdf.set_x(pdf.l_margin)
     pdf.multi_cell(pdf.epw, height, line, wrapmode="CHAR")
@@ -368,6 +491,7 @@ def _pdf_line(pdf, text, height=5):
 
 @app.route("/api/pdf", methods=["POST"])
 def api_pdf():
+    """Build and download a simple PDF export of the given comments list."""
     data     = request.get_json(force=True) or {}
     video_id = data.get("video_id", "")
     comments = data.get("comments")

@@ -1,0 +1,212 @@
+.topic-analytics-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: clamp(1rem, 3vw, 2rem) clamp(1rem, 4vw, 2rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ta-header__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ta-header h1 {
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  margin-bottom: 0.35rem;
+}
+
+.ta-header__sub {
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  max-width: 48ch;
+}
+
+.ta-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ta-scope {
+  margin-top: 0.5rem;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  color: var(--clr-red);
+}
+
+.state-msg {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--clr-muted);
+}
+
+.link-red { color: var(--clr-red); text-decoration: underline; }
+.link-red:hover,
+.link-red:focus-visible { color: var(--clr-red-hover); }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.85rem;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.stat-card__label {
+  font-size: clamp(0.78rem, 1.8vw, 0.88rem);
+  color: var(--clr-muted);
+}
+
+.stat-card__value {
+  font-size: clamp(1.4rem, 3.5vw, 1.9rem);
+  font-weight: 700;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.chart-card h2 {
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  margin-bottom: 0.35rem;
+}
+
+.chart-card__hint {
+  font-size: clamp(0.78rem, 1.8vw, 0.88rem);
+  margin-bottom: 0.75rem;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 16rem;
+}
+
+.chart-wrap--wide {
+  height: 14rem;
+}
+
+.topic-stats__heading {
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  margin-bottom: 0.85rem;
+}
+
+.topic-stats__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.topic-stat-card {
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  padding: clamp(1rem, 2.5vw, 1.35rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.topic-stat-card:hover,
+.topic-stat-card:focus-visible {
+  border-color: var(--clr-red);
+  outline: none;
+}
+
+.topic-stat-card.active {
+  border-color: var(--clr-red);
+  box-shadow: inset 0 0 0 1px var(--clr-red);
+}
+
+.topic-stat-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.topic-stat-card__title {
+  font-size: clamp(1rem, 2.5vw, 1.15rem);
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.topic-stat-card__count {
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  color: var(--clr-muted);
+  white-space: nowrap;
+}
+
+.topic-stat-card__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  color: var(--clr-muted);
+}
+
+.topic-stat-card__metrics strong {
+  color: var(--clr-text);
+  font-weight: 600;
+}
+
+.sentiment-bar {
+  display: flex;
+  height: 0.55rem;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--clr-bg);
+}
+
+.sentiment-bar__seg {
+  min-width: 0;
+  height: 100%;
+}
+
+.sentiment-bar__seg--positive { background: var(--clr-positive); }
+.sentiment-bar__seg--neutral  { background: var(--clr-neutral); }
+.sentiment-bar__seg--negative { background: var(--clr-negative); }
+
+.core-snippet {
+  border-left: 3px solid var(--clr-red);
+  padding-left: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.core-snippet__label {
+  font-size: clamp(0.72rem, 1.6vw, 0.8rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--clr-red);
+}
+
+.core-snippet__text {
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  line-height: 1.6;
+  color: var(--clr-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 800px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -168,6 +168,13 @@
   color: var(--clr-muted);
 }
 
+.results-meta__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .results-meta__text {
   display: flex;
   flex-direction: column;

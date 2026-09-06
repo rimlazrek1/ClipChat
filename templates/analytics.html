@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analytics — Comment Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <link rel="stylesheet" href="/static/css/analytics.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <nav class="navbar" aria-label="Main navigation">
+    <a href="/" class="navbar__logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              stroke="#c0392b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Comment<span>Intel</span>
+    </a>
+    <ul class="navbar__links">
+      <li><a href="/">Home</a></li>
+      <li><a href="/search">Search</a></li>
+      <li><a href="/topics">Topics</a></li>
+      <li><a href="/analytics" class="active">Analytics</a></li>
+      <li><a href="/topic-analytics">Topic Analytics</a></li>
+    </ul>
+  </nav>
+
+  <main class="analytics-page">
+
+    <section class="analytics-header card">
+      <div class="analytics-header__row">
+        <div>
+          <h1>Analytics</h1>
+          <p class="text-muted analytics-header__sub">Overview of sentiment, activity, and moments viewers timestamped in comments. Click charts to cross-filter.</p>
+          <p class="analytics-scope hidden" id="scopeBanner"></p>
+        </div>
+        <div class="analytics-header__controls">
+          <button class="btn btn--ghost btn--sm hidden" id="clearChartFiltersBtn" type="button">Clear chart filters</button>
+          <div class="export-menu" id="exportMenu">
+            <button class="btn btn--ghost" type="button" data-export-toggle aria-expanded="false" aria-haspopup="true">Export</button>
+            <div class="export-menu__list hidden" data-export-menu role="menu">
+              <button class="export-menu__item" type="button" data-export-format="csv" role="menuitem">CSV</button>
+              <button class="export-menu__item" type="button" data-export-format="pdf" role="menuitem">PDF</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="filter-panel card" id="filterPanel" aria-label="Analytics filters">
+      <div class="filter-panel__row">
+        <input id="searchInput" class="input" type="search"
+               placeholder="Filter by meaning… e.g. audio problems"
+               autocomplete="off" />
+        <button class="btn btn--primary" id="applyFiltersBtn" type="button">Apply</button>
+        <button class="btn btn--ghost" id="resetFiltersBtn" type="button">Reset</button>
+      </div>
+
+      <div class="filter-tabs" role="tablist" aria-label="Sentiment filters">
+        <button class="filter-tab active" data-filter="all" role="tab" aria-selected="true">All</button>
+        <button class="filter-tab" data-filter="positive" role="tab">Positive</button>
+        <button class="filter-tab" data-filter="neutral" role="tab">Neutral</button>
+        <button class="filter-tab" data-filter="negative" role="tab">Negative</button>
+        <button class="filter-tab" data-filter="questions" role="tab">Viewer Questions</button>
+        <button class="filter-tab" data-filter="technical" role="tab">Technical Issues</button>
+      </div>
+
+      <details class="extra-filters">
+        <summary class="extra-filters__toggle">More filters</summary>
+        <div class="extra-filters__body">
+          <label class="filter-label">
+            Min likes
+            <input id="minLikes" class="input input--sm" type="number" min="0" placeholder="0" />
+          </label>
+          <label class="filter-label">
+            From
+            <input id="dateFrom" class="input input--sm" type="date" />
+          </label>
+          <label class="filter-label">
+            To
+            <input id="dateTo" class="input input--sm" type="date" />
+          </label>
+        </div>
+      </details>
+
+      <div class="selection-bar hidden" id="selectionBar">
+        <span>Chart filters:</span>
+        <div class="selection-bar__chips" id="selectionChips"></div>
+      </div>
+    </section>
+
+    <div class="state-msg card" id="noVideoMsg">
+      <p>No video loaded. <a href="/" class="link-red">Go back and paste a link.</a></p>
+    </div>
+
+    <div class="state-msg hidden" id="loadingMsg">
+      <div class="spinner"></div>
+      <p class="text-muted mt-1">Loading analytics…</p>
+    </div>
+
+    <div id="analyticsContent" class="hidden">
+
+      <section class="stat-grid" aria-label="Summary stats">
+        <article class="stat-card card">
+          <p class="stat-card__label">Comments</p>
+          <p class="stat-card__value" id="statComments">0</p>
+        </article>
+        <article class="stat-card card">
+          <p class="stat-card__label">Total likes</p>
+          <p class="stat-card__value" id="statLikes">0</p>
+        </article>
+        <article class="stat-card card">
+          <p class="stat-card__label">Unique authors</p>
+          <p class="stat-card__value" id="statAuthors">0</p>
+        </article>
+        <article class="stat-card card">
+          <p class="stat-card__label">Positive rate</p>
+          <p class="stat-card__value" id="statPositive">0%</p>
+        </article>
+      </section>
+
+      <section class="charts-grid">
+        <article class="card chart-card chart-card--interactive">
+          <h2>Sentiment</h2>
+          <p class="text-muted chart-card__hint">Click a slice to filter all charts.</p>
+          <div class="chart-wrap chart-wrap--sm">
+            <canvas id="sentimentChart" aria-label="Sentiment breakdown chart"></canvas>
+          </div>
+        </article>
+
+        <article class="card chart-card chart-card--interactive">
+          <h2>Comments per day</h2>
+          <p class="text-muted chart-card__hint">Click a day to filter all charts.</p>
+          <div class="chart-wrap">
+            <canvas id="datesChart" aria-label="Comments per day chart"></canvas>
+          </div>
+        </article>
+      </section>
+
+      <section class="card chart-card">
+        <div class="chart-card__header">
+          <div>
+            <h2>Timestamp heatmap</h2>
+            <p class="text-muted chart-card__hint">Mentions like 3:15, grouped by minute. Click a bar to cross-filter.</p>
+          </div>
+        </div>
+        <div id="heatmapEmpty" class="text-muted heatmap-empty hidden">No timestamps found in these comments.</div>
+        <div class="heatmap" id="heatmap" role="list" aria-label="Timestamp mentions by minute"></div>
+      </section>
+
+      <section class="split-grid">
+        <article class="card">
+          <h2>Top authors</h2>
+          <p class="text-muted chart-card__hint">Click an author to filter all charts.</p>
+          <ul class="author-list" id="authorList"></ul>
+        </article>
+
+        <article class="card">
+          <div class="chart-card__header">
+            <h2 id="commentsTitle">Comments</h2>
+          </div>
+          <p class="text-muted chart-card__hint" id="commentsHint">Showing comments for the current filters.</p>
+          <div class="minute-comments" id="minuteComments"></div>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+  <script src="/static/js/export.js"></script>
+  <script src="/static/js/analytics.js"></script>
+</body>
+</html>

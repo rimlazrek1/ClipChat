@@ -2,6 +2,7 @@
 const toast = document.getElementById('toast');
 let toastTimer;
 
+/** Show a temporary toast message. */
 function showToast(msg, type = 'error') {
   clearTimeout(toastTimer);
   toast.textContent = msg;
@@ -15,6 +16,7 @@ const analyseBtn = document.getElementById('analyseBtn');
 const loading    = document.getElementById('loadingState');
 
 /* ── Submit ───────────────────────────────────────────────── */
+/** Fetch comments for the entered YouTube URL and redirect to search. */
 async function handleSubmit() {
   const url = urlInput.value.trim();
   if (!url) {

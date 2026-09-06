@@ -1,5 +1,6 @@
 const toastEl = document.getElementById('toast');
 let toastTimer;
+/** Show a temporary toast message. */
 function showToast(msg, type = 'error') {
   clearTimeout(toastTimer);
   toastEl.textContent = msg;
@@ -33,7 +34,8 @@ const loadingMsg   = document.getElementById('loadingMsg');
 const emptyMsg     = document.getElementById('emptyMsg');
 const idleMsg      = document.getElementById('idleMsg');
 const noVideoMsg   = document.getElementById('noVideoMsg');
-const downloadPdf  = document.getElementById('downloadPdf');
+const downloadPdf  = document.getElementById('exportMenu');
+const analyzeBtn   = document.getElementById('analyzeBtn');
 const historyList  = document.getElementById('historyList');
 const historyEmpty = document.getElementById('historyEmpty');
 const clearHistory = document.getElementById('clearHistory');
@@ -70,6 +72,7 @@ const resetFilters = document.getElementById('resetFilters');
   renderHistory();
 })();
 
+/** Build the current filter payload from UI controls. */
 function buildFilters() {
   const f = {};
   if (activeFilter !== 'all') f.sentiment = activeFilter;
@@ -80,10 +83,12 @@ function buildFilters() {
   return f;
 }
 
+/** Whether the search box has a non-empty query. */
 function hasSearchQuery() {
   return searchInput.value.trim().length > 0;
 }
 
+/** Load all comments for the current video with active filters. */
 async function browseAll() {
   if (!videoId) return;
   lastQuery = '';
@@ -106,6 +111,7 @@ async function browseAll() {
   }
 }
 
+/** Run a semantic search, or fall back to browse when the query is empty. */
 async function runSearch() {
   if (!videoId) return;
 
@@ -138,11 +144,13 @@ async function runSearch() {
   }
 }
 
+/** Re-run search or browse based on the current query. */
 function refreshResults() {
   if (hasSearchQuery()) runSearch();
   else browseAll();
 }
 
+/** Render the comment list and results meta for browse or search mode. */
 function renderResults(comments, { mode, query } = { mode: 'browse' }) {
   setLoading(false);
   commentList.innerHTML = '';
@@ -170,11 +178,7 @@ function renderResults(comments, { mode, query } = { mode: 'browse' }) {
     resultsHint.textContent = '';
   }
 
-  const filtersOn = activeFilter !== 'all'
-    || (parseInt(minLikes.value, 10) > 0)
-    || Boolean(dateFrom.value)
-    || Boolean(dateTo.value);
-  downloadPdf.style.display = (mode === 'search' || filtersOn) ? '' : 'none';
+  if (downloadPdf) downloadPdf.style.display = '';
 
   comments.forEach(c => {
     const card = document.createElement('article');
@@ -197,6 +201,7 @@ function renderResults(comments, { mode, query } = { mode: 'browse' }) {
   });
 }
 
+/** Toggle the loading state and hide competing empty/meta messages. */
 function setLoading(on) {
   loadingMsg.classList.toggle('hidden', !on);
   if (on) {
@@ -232,11 +237,13 @@ searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(
 
 const HISTORY_KEY = 'cit_search_history';
 
+/** Read recent search queries from localStorage. */
 function getHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
   catch { return []; }
 }
 
+/** Persist a query at the front of recent search history (max 10). */
 function saveToHistory(query) {
   if (!query) return;
   let h = getHistory().filter(q => q !== query);
@@ -246,6 +253,7 @@ function saveToHistory(query) {
   renderHistory();
 }
 
+/** Render the clickable recent-search list. */
 function renderHistory() {
   const h = getHistory();
   historyList.innerHTML = '';
@@ -272,48 +280,38 @@ clearHistory.addEventListener('click', () => {
   renderHistory();
 });
 
-downloadPdf.addEventListener('click', async () => {
-  if (!lastComments.length) return;
-  const filterLabel = FILTER_LABELS[activeFilter] || 'All comments';
-  const title = lastQuery
-    ? `Search: ${lastQuery}`
-    : `Comments · ${filterLabel}`;
-  try {
-    const res = await fetch('/api/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        video_id: videoId,
-        comments: lastComments.map(c => ({
-          author: c.author,
-          text: c.text,
-          likes: c.likes,
-          sentiment_label: c.sentiment_label,
-          published_at: c.published_at,
-        })),
-        title,
-      }),
-    });
-    if (!res.ok) {
-      let msg = 'PDF export failed.';
-      try {
-        const err = await res.json();
-        if (err.error) msg = err.error;
-      } catch (_) {}
-      throw new Error(msg);
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'comments.pdf';
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    showToast(err.message);
-  }
+setupExportMenu({
+  root: downloadPdf,
+  getRows: () => lastComments.map(c => ({
+    author: c.author,
+    text: c.text,
+    likes: c.likes,
+    sentiment_label: c.sentiment_label,
+    published_at: c.published_at,
+  })),
+  getTitle: () => {
+    const filterLabel = FILTER_LABELS[activeFilter] || 'All comments';
+    return lastQuery ? `Search: ${lastQuery}` : `Comments - ${filterLabel}`;
+  },
+  getFilenameBase: () => lastQuery ? 'search-results' : 'filtered-comments',
+  getVideoId: () => videoId,
+  onError: showToast,
 });
 
+analyzeBtn.addEventListener('click', () => {
+  if (!lastComments.length) {
+    showToast('Nothing to analyze.');
+    return;
+  }
+  sessionStorage.setItem('analytics_scope', JSON.stringify({
+    query: searchInput.value.trim(),
+    filters: buildFilters(),
+    source: 'search',
+  }));
+  window.location.href = '/analytics';
+});
+
+/** Escape HTML special characters for safe innerHTML insertion. */
 function escHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')

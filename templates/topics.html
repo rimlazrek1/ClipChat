@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Search — Comment Intelligence</title>
+  <title>Topics — Comment Intelligence</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/main.css" />
   <link rel="stylesheet" href="/static/css/search.css" />
+  <link rel="stylesheet" href="/static/css/topics.css" />
 </head>
 <body>
 
-  <!-- Navbar -->
   <nav class="navbar" aria-label="Main navigation">
     <a href="/" class="navbar__logo">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -23,25 +23,23 @@
     </a>
     <ul class="navbar__links">
       <li><a href="/">Home</a></li>
-      <li><a href="/search" class="active">Search</a></li>
-      <li><a href="/topics">Topics</a></li>
+      <li><a href="/search">Search</a></li>
+      <li><a href="/topics" class="active">Topics</a></li>
       <li><a href="/analytics">Analytics</a></li>
       <li><a href="/topic-analytics">Topic Analytics</a></li>
     </ul>
   </nav>
 
-  <main class="search-page">
+  <main class="topics-page">
 
-    <!-- Search bar -->
     <section class="search-header card">
       <div class="search-bar-row">
         <input id="searchInput" class="input" type="search"
                placeholder="Search comments by meaning… e.g. audio problems"
                autocomplete="off" />
-        <button class="btn btn--primary" id="searchBtn" type="button">Search</button>
+        <button class="btn btn--primary" id="applyTopicsBtn" type="button">Apply</button>
       </div>
 
-      <!-- Smart filter tabs -->
       <div class="filter-tabs" role="tablist" aria-label="Filter tabs">
         <button class="filter-tab active" data-filter="all"        role="tab" aria-selected="true">All</button>
         <button class="filter-tab"        data-filter="positive"   role="tab">Positive</button>
@@ -51,7 +49,6 @@
         <button class="filter-tab"        data-filter="technical"  role="tab">Technical Issues</button>
       </div>
 
-      <!-- Extra filters -->
       <details class="extra-filters">
         <summary class="extra-filters__toggle">More filters</summary>
         <div class="extra-filters__body">
@@ -67,75 +64,56 @@
             To
             <input id="dateTo" class="input input--sm" type="date" />
           </label>
+          <label class="filter-label" for="clusterCount">
+            Groups
+            <select id="clusterCount" class="input input--sm">
+              <option value="3">3</option>
+              <option value="5" selected>5</option>
+              <option value="7">7</option>
+              <option value="10">10</option>
+            </select>
+          </label>
           <button class="btn btn--ghost btn--sm" id="applyFilters" type="button">Apply</button>
           <button class="btn btn--ghost btn--sm" id="resetFilters" type="button">Reset</button>
         </div>
       </details>
     </section>
 
-    <div class="search-body">
+    <section class="topics-area" aria-live="polite" aria-label="Topic groups">
 
-      <!-- Search history sidebar -->
-      <aside class="history-panel card" id="historyPanel">
-        <div class="history-panel__header">
-          <h3>Recent searches</h3>
-          <button class="btn btn--ghost btn--sm" id="clearHistory">Clear</button>
-        </div>
-        <ul class="history-list" id="historyList"></ul>
-        <p class="text-muted history-empty hidden" id="historyEmpty">No history yet.</p>
-      </aside>
+      <div class="state-msg card" id="noVideoMsg">
+        <p>No video loaded. <a href="/" class="link-red">Go back and paste a link.</a></p>
+      </div>
 
-      <!-- Results -->
-      <section class="results-area" aria-live="polite" aria-label="Search results">
+      <div class="state-msg hidden" id="loadingMsg">
+        <div class="spinner"></div>
+        <p class="text-muted mt-1">Grouping comments…</p>
+      </div>
 
-        <!-- No video state -->
-        <div class="state-msg card" id="noVideoMsg">
-          <p>No video loaded. <a href="/" class="link-red">Go back and paste a link.</a></p>
-        </div>
+      <div class="state-msg card hidden" id="emptyMsg">
+        <p class="text-muted">Not enough comments to build topics.</p>
+      </div>
 
-        <!-- Idle state -->
-        <div class="state-msg card hidden" id="idleMsg">
-          <p class="text-muted">Type a query above and hit Search, or pick a filter tab to browse all comments.</p>
-        </div>
-
-        <!-- Loading -->
-        <div class="state-msg hidden" id="loadingMsg">
-          <div class="spinner"></div>
-          <p class="text-muted mt-1">Searching…</p>
-        </div>
-
-        <!-- Empty results -->
-        <div class="state-msg card hidden" id="emptyMsg">
-          <p class="text-muted">No comments matched. Try a different query or filter.</p>
-        </div>
-
-        <!-- Results header -->
-        <div class="results-meta hidden" id="resultsMeta">
-          <div class="results-meta__text">
-            <span id="resultsCount"></span>
-            <span class="results-meta__hint text-muted" id="resultsHint"></span>
-          </div>
-          <div class="results-meta__actions">
-            <button class="btn btn--ghost btn--sm" id="analyzeBtn" type="button">Analyze results</button>
-            <div class="export-menu" id="exportMenu">
-              <button class="btn btn--ghost btn--sm" type="button" data-export-toggle aria-expanded="false" aria-haspopup="true">Export</button>
-              <div class="export-menu__list hidden" data-export-menu role="menu">
-                <button class="export-menu__item" type="button" data-export-format="csv" role="menuitem">CSV</button>
-                <button class="export-menu__item" type="button" data-export-format="pdf" role="menuitem">PDF</button>
-              </div>
+      <div class="results-meta hidden" id="resultsMeta">
+        <span id="resultsCount"></span>
+        <div class="results-meta__actions">
+          <button class="btn btn--ghost btn--sm" id="analyzeBtn" type="button">Topic analytics</button>
+          <div class="export-menu" id="exportMenu">
+            <button class="btn btn--ghost btn--sm" type="button" data-export-toggle aria-expanded="false" aria-haspopup="true">Export</button>
+            <div class="export-menu__list hidden" data-export-menu role="menu">
+              <button class="export-menu__item" type="button" data-export-format="csv" role="menuitem">CSV</button>
+              <button class="export-menu__item" type="button" data-export-format="pdf" role="menuitem">PDF</button>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Comment cards -->
-        <div class="comment-list" id="commentList"></div>
-
-      </section>
-    </div>
+      <div class="topic-list" id="topicList"></div>
+    </section>
   </main>
 
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
   <script src="/static/js/export.js"></script>
-  <script src="/static/js/search.js"></script>
+  <script src="/static/js/topics.js"></script>
 </body>
 </html>
