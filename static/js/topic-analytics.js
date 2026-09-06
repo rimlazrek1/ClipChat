@@ -12,7 +12,6 @@ const SCOPE_KEY = 'topic_analytics_scope';
 const SENTIMENT_KEYS = ['positive', 'neutral', 'negative'];
 
 let videoId = sessionStorage.getItem('video_id') || null;
-let exportRows = [];
 let sizeChart = null;
 let sentimentChart = null;
 let likesChart = null;
@@ -25,7 +24,6 @@ let firstLoad = true;
 const noVideoMsg = document.getElementById('noVideoMsg');
 const loadingMsg = document.getElementById('loadingMsg');
 const analyticsContent = document.getElementById('analyticsContent');
-const exportMenu = document.getElementById('exportMenu');
 const scopeBanner = document.getElementById('scopeBanner');
 const topicStatsList = document.getElementById('topicStatsList');
 const searchInput = document.getElementById('searchInput');
@@ -152,14 +150,6 @@ function renderAll() {
   document.getElementById('statAuthors').textContent =
     selectedClusterId == null ? summaryMeta.unique_authors : '—';
 
-  exportRows = topics.map(t => ({
-    author: t.title,
-    text: (t.core_message && t.core_message.text) || '',
-    likes: t.total_likes,
-    sentiment_label: `${t.positive_rate}% positive`,
-    published_at: `${t.count} comments`,
-  }));
-
   renderSizeChart(topics);
   renderSentimentChart(topics);
   renderLikesChart(topics);
@@ -234,7 +224,6 @@ searchInput.addEventListener('keydown', e => {
 
   if (!videoId) {
     noVideoMsg.classList.remove('hidden');
-    if (exportMenu) exportMenu.querySelector('[data-export-toggle]').disabled = true;
     return;
   }
 
@@ -539,18 +528,6 @@ function renderTopicCards(topics) {
     topicStatsList.appendChild(card);
   });
 }
-
-setupExportMenu({
-  root: exportMenu,
-  getRows: () => exportRows,
-  getTitle: () => {
-    const q = searchInput.value.trim();
-    return q ? `Topic analytics - ${q}` : 'Topic analytics';
-  },
-  getFilenameBase: () => 'topic-analytics',
-  getVideoId: () => videoId,
-  onError: showToast,
-});
 
 /** Escape HTML special characters for safe innerHTML insertion. */
 function escHtml(str) {

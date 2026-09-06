@@ -1,4 +1,4 @@
-# Comment Intelligence Tool
+# ClipChat
 
 Paste a YouTube video link and explore its comments: search by meaning, group them into topics, and open analytics dashboards with filters and export.
 

@@ -12,7 +12,6 @@ const SCOPE_KEY = 'analytics_scope';
 const SENTIMENT_KEYS = ['positive', 'neutral', 'negative'];
 
 let videoId = sessionStorage.getItem('video_id') || null;
-let exportRows = [];
 let sentimentChart = null;
 let datesChart = null;
 let datesData = [];
@@ -22,7 +21,6 @@ let firstLoad = true;
 const noVideoMsg = document.getElementById('noVideoMsg');
 const loadingMsg = document.getElementById('loadingMsg');
 const analyticsContent = document.getElementById('analyticsContent');
-const exportMenu = document.getElementById('exportMenu');
 const heatmap = document.getElementById('heatmap');
 const heatmapEmpty = document.getElementById('heatmapEmpty');
 const commentsEl = document.getElementById('minuteComments');
@@ -30,7 +28,6 @@ const commentsTitle = document.getElementById('commentsTitle');
 const commentsHint = document.getElementById('commentsHint');
 const authorList = document.getElementById('authorList');
 const scopeBanner = document.getElementById('scopeBanner');
-const clearChartFiltersBtn = document.getElementById('clearChartFiltersBtn');
 const searchInput = document.getElementById('searchInput');
 const minLikes = document.getElementById('minLikes');
 const dateFrom = document.getElementById('dateFrom');
@@ -127,10 +124,8 @@ function updateSelectionUi() {
   selectionChips.innerHTML = '';
   if (!chips.length) {
     selectionBar.classList.add('hidden');
-    clearChartFiltersBtn.classList.add('hidden');
   } else {
     selectionBar.classList.remove('hidden');
-    clearChartFiltersBtn.classList.remove('hidden');
     chips.forEach(chip => {
       const el = document.createElement('span');
       el.className = 'selection-chip';
@@ -183,25 +178,6 @@ selectionChips.addEventListener('click', e => {
   const btn = e.target.closest('[data-clear]');
   if (!btn) return;
   clearChartKey(btn.dataset.clear);
-});
-
-clearChartFiltersBtn.addEventListener('click', () => {
-  window.__sentimentPicked = false;
-  window.__dayPicked = false;
-  window.__chartMinute = null;
-  window.__chartAuthor = '';
-  // Only clear chart-originated filters that are exclusive; keep search/min likes
-  // If sentiment was chart-picked, reset tab; if day was chart-picked, clear dates
-  activeFilter = 'all';
-  syncFilterTabs();
-  // Don't wipe dates unless they were a single-day pick — wipe them for simplicity on clear chart
-  if (dateFrom.value && dateTo.value && dateFrom.value === dateTo.value) {
-    dateFrom.value = '';
-    dateTo.value = '';
-  }
-  persistScope();
-  updateSelectionUi();
-  loadAnalytics();
 });
 
 filterTabs.forEach(tab => {
@@ -276,7 +252,6 @@ searchInput.addEventListener('keydown', e => {
 
   if (!videoId) {
     noVideoMsg.classList.remove('hidden');
-    if (exportMenu) exportMenu.querySelector('[data-export-toggle]').disabled = true;
     return;
   }
 
@@ -317,13 +292,6 @@ async function loadAnalytics() {
     if (!browseRes.ok || browse.error) throw new Error(browse.error || 'Could not load comments.');
 
     const comments = browse.comments || [];
-    exportRows = comments.map(c => ({
-      author: c.author,
-      text: c.text,
-      likes: c.likes,
-      sentiment_label: c.sentiment_label,
-      published_at: c.published_at,
-    }));
 
     renderStats(analytics);
     renderSentimentChart(analytics.sentiment || {});
@@ -596,22 +564,10 @@ function renderComments(comments) {
   if (comments.length > 40) {
     const more = document.createElement('p');
     more.className = 'text-muted';
-    more.textContent = `Showing 40 of ${comments.length} comments. Export for the full set.`;
+    more.textContent = `Showing 40 of ${comments.length} comments.`;
     commentsEl.appendChild(more);
   }
 }
-
-setupExportMenu({
-  root: exportMenu,
-  getRows: () => exportRows,
-  getTitle: () => {
-    const q = searchInput.value.trim();
-    return q ? `Analytics - ${q}` : 'Analytics export';
-  },
-  getFilenameBase: () => 'analytics',
-  getVideoId: () => videoId,
-  onError: showToast,
-});
 
 /** Escape HTML special characters for safe innerHTML insertion. */
 function escHtml(str) {

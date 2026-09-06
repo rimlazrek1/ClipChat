@@ -46,9 +46,9 @@ p  { font-size: clamp(0.9rem, 2vw, 1rem); }
   background: var(--clr-surface);
   border-bottom: 2px solid var(--clr-red);
   padding: clamp(0.75rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   position: sticky;
   top: 0;
@@ -58,19 +58,69 @@ p  { font-size: clamp(0.9rem, 2vw, 1rem); }
 .navbar__logo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: clamp(1rem, 2.5vw, 1.2rem);
-  font-weight: 700;
-  color: var(--clr-text);
+  flex-shrink: 0;
+  overflow: hidden;
+  width: clamp(2.5rem, 6vw, 3.25rem);
+  height: clamp(2.5rem, 6vw, 3.25rem);
+  border-radius: var(--radius);
+  justify-self: start;
 }
 
-.navbar__logo span { color: var(--clr-red); }
+.navbar__logo img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+}
+
+.navbar__logo:hover,
+.navbar__logo:focus-visible {
+  outline: 2px solid var(--clr-red);
+  outline-offset: 2px;
+}
+
+.navbar__logo:active {
+  opacity: 0.85;
+}
+
+.navbar__brand {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.2rem, 2.8vw, 1.6rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--clr-text);
+  white-space: nowrap;
+  justify-self: center;
+  transition: opacity var(--transition);
+}
+
+.navbar__brand span {
+  color: var(--clr-red);
+}
+
+.navbar__brand:hover {
+  opacity: 0.85;
+}
+
+.navbar__brand:focus-visible {
+  outline: 2px solid var(--clr-red);
+  outline-offset: 3px;
+  border-radius: var(--radius);
+}
+
+.navbar__brand:active {
+  opacity: 0.7;
+}
 
 .navbar__links {
   display: flex;
   gap: clamp(0.5rem, 2vw, 1.5rem);
   list-style: none;
   flex-wrap: wrap;
+  justify-self: end;
+  justify-content: flex-end;
 }
 
 .navbar__links a {
@@ -91,6 +141,28 @@ p  { font-size: clamp(0.9rem, 2vw, 1rem); }
 .navbar__links a.active {
   color: var(--clr-text);
   border-bottom: 2px solid var(--clr-red);
+}
+
+@media (max-width: 48rem) {
+  .navbar {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "logo brand"
+      "links links";
+  }
+
+  .navbar__logo { grid-area: logo; }
+
+  .navbar__brand {
+    grid-area: brand;
+    justify-self: center;
+  }
+
+  .navbar__links {
+    grid-area: links;
+    justify-self: center;
+    justify-content: center;
+  }
 }
 
 /* ── Buttons ──────────────────────────────────────────────── */
